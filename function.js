@@ -73,19 +73,17 @@ function createCalendarEvent(event) {
             body += emailBody + "\n";
         }
 
-        // Open the new appointment form
-        // This opens Outlook's native appointment window with fields pre-filled
-        // The user fills in date, time, and duration, then saves
-        Office.context.mailbox.displayNewAppointmentForm(
-            "[TASK] " + subject,  // Subject
-            body,                  // Body (plain text)
-            [],                    // No attendees (appointment, not meeting)
-            "",                    // No location
-            {                      // Start/end left to defaults
-                // When start/end are not specified or invalid,
-                // Outlook uses the next default time slot
-            }
-        );
+        // Open the new appointment form using the correct parameter format.
+        // Pass a single object with named properties.
+        // requiredAttendees and optionalAttendees are empty arrays
+        // so it creates an APPOINTMENT, not a meeting.
+        Office.context.mailbox.displayNewAppointmentForm({
+            requiredAttendees: [],
+            optionalAttendees: [],
+            subject: "[TASK] " + subject,
+            body: body,
+            location: ""
+        });
 
         // Signal that the add-in has finished processing
         event.completed();
