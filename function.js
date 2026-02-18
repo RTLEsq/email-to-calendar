@@ -23,64 +23,70 @@ function createCalendarEvent(event) {
         : "Unknown";
 
     // Build the Outlook Web App link to the original email
-    // This uses the itemId to create a deep link
     var itemId = item.itemId;
-    var mailboxUrl = Office.context.mailbox.restUrl || "";
 
-    // Construct OWA deep link
-    // Format: https://outlook.office365.com/mail/deeplink/compose/<itemId>
-    // For reading: https://outlook.office365.com/mail/id/<itemId>
-    var emailLink = "";
+    // Build the appointment body as HTML so links are clickable
+    // Use outlook: protocol to open email in desktop client
+    var desktopLink = "";
+    var webLink = "";
     if (itemId) {
-        // Use the EWS item ID to build an OWA link
-        emailLink = "https://outlook.office365.com/mail/id/" + encodeURIComponent(itemId);
+        desktopLink = "outlook:" + itemId;
+        webLink = "https://outlook.office365.com/mail/id/" + encodeURIComponent(itemId);
     }
-
-    // Build the appointment body
-    var body = "";
-    body += "========================================\n";
-    body += "TASK FROM EMAIL\n";
-    body += "========================================\n\n";
-
-    if (emailLink) {
-        body += "OPEN ORIGINAL EMAIL (with attachments):\n";
-        body += emailLink + "\n\n";
-    }
-
-    body += "----------------------------------------\n";
-    body += "From: " + sender;
-    if (senderEmail && senderEmail !== sender) {
-        body += " <" + senderEmail + ">";
-    }
-    body += "\n";
-    body += "Received: " + receivedDate + "\n";
-    body += "Original Subject: " + subject + "\n";
-    body += "----------------------------------------\n\n";
 
     // Get the body preview for context
     item.body.getAsync(Office.CoercionType.Text, function (result) {
         var emailBody = "";
         if (result.status === Office.AsyncResultStatus.Succeeded) {
-            // Include first 500 characters of the email body
             emailBody = result.value;
             if (emailBody.length > 500) {
                 emailBody = emailBody.substring(0, 500) + "...";
             }
+            // Escape HTML characters in the email preview
+            emailBody = emailBody.replace(/&/g, "&amp;")
+                                 .replace(/</g, "&lt;")
+                                 .replace(/>/g, "&gt;")
+                                 .replace(/\n/g, "<br>");
         }
+
+        var body = "<div style='font-family: Segoe UI, Arial, sans-serif;'>";
+        body += "<h3 style='color: #0078d4;'>TASK FROM EMAIL</h3>";
+
+        if (desktopLink) {
+            body += "<p><strong>Open Original Email:</strong><br>";
+            body += "<a href='" + desktopLink + "'>Open in Outlook Desktop</a>";
+            body += " &nbsp;|&nbsp; ";
+            body += "<a href='" + webLink + "'>Open in Outlook Web</a>";
+            body += "</p>";
+        }
+
+        body += "<hr>";
+        body += "<p>";
+        body += "<strong>From:</strong> " + sender;
+        if (senderEmail && senderEmail !== sender) {
+            body += " &lt;" + senderEmail + "&gt;";
+        }
+        body += "<br>";
+        body += "<strong>Received:</strong> " + receivedDate + "<br>";
+        body += "<strong>Original Subject:</strong> " + subject;
+        body += "</p>";
+        body += "<hr>";
 
         if (emailBody) {
-            body += "EMAIL PREVIEW:\n";
-            body += emailBody + "\n";
+            body += "<p><strong>Email Preview:</strong><br>";
+            body += emailBody;
+            body += "</p>";
         }
 
-        // Open the new appointment form using the correct parameter format.
-        // Pass a single object with named properties.
+        body += "</div>";
+
+        // Open the new appointment form.
         // requiredAttendees and optionalAttendees are empty arrays
         // so it creates an APPOINTMENT, not a meeting.
         Office.context.mailbox.displayNewAppointmentForm({
             requiredAttendees: [],
             optionalAttendees: [],
-            subject: "[TASK] " + subject,
+            subject: subject,
             body: body,
             location: ""
         });
